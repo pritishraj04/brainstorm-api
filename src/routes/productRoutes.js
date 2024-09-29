@@ -1,6 +1,7 @@
 import { Router } from "express";
 import Product from "../models/Product.js";
-import protect from "../middleware/authMiddleware.js";
+import { protectUser } from "../middleware/authMiddleware.js";
+import roleAuth from "../middleware/allowedRole.js";
 
 const router = Router();
 
@@ -19,7 +20,7 @@ router.get("/", async (req, res) => {
 // @route POST /api/v1/products
 // @desc  Create a product
 // @access Private
-router.post("/", protect, async (req, res) => {
+router.post("/", protectUser, roleAuth(["user"]), async (req, res) => {
   try {
     const {
       name,
@@ -63,7 +64,7 @@ router.post("/", protect, async (req, res) => {
 // @route PATCH /api/v1/products/:id
 // @desc  update a product field except the name field
 // @access Private
-router.patch("/:id", protect, async (req, res) => {
+router.patch("/:id", protectUser, roleAuth(["user"]), async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;

@@ -50,6 +50,34 @@ const orderSchema = new Schema(
       enum: ["Pending", "Paid", "Failed"],
       default: "Pending",
     },
+    shippingMethod: {
+      type: String,
+      enum: ["Standard", "Express", "Priority"],
+      default: "Standard",
+      required: true,
+    },
+    shippingCost: {
+      type: Number,
+      required: true,
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["Cash On Delivery", "Card", "UPI"],
+      default: "Cash On Delivery",
+      required: true,
+    },
+    orderNumber: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    comments: [
+      {
+        comment: { type: String, required: true },
+        author: { type: Schema.Types.ObjectId, ref: "User" },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
     orderDate: {
       type: Date,
       default: Date.now,

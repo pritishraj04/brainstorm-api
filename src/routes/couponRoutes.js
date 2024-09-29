@@ -1,6 +1,7 @@
 import { Router } from "express";
 import Coupon from "../models/Coupon.js";
-import protect from "../middleware/authMiddleware.js";
+import { protectUser } from "../middleware/authMiddleware.js";
+import roleAuth from "../middleware/allowedRole.js";
 
 const router = new Router();
 
@@ -20,7 +21,7 @@ router.get("/", async (req, res) => {
 // @route POST /api/v1/coupons/
 // @desc Create a new coupon
 // @access private
-router.post("/", protect, async (req, res) => {
+router.post("/", protectUser, roleAuth(["user"]), async (req, res) => {
   try {
     const { code, discount, discountPriceLimit, usageLimit, expirationDate } =
       req.body;
@@ -49,7 +50,7 @@ router.post("/", protect, async (req, res) => {
 // @desc update a coupon
 // @access private
 
-router.patch("/:id", protect, async (req, res) => {
+router.patch("/:id", protectUser, roleAuth(["user"]), async (req, res) => {
   try {
     const { code, discount, discountPriceLimit, usageLimit, expirationDate } =
       req.body;
@@ -77,7 +78,7 @@ router.patch("/:id", protect, async (req, res) => {
 // @route DELETE /api/v1/coupons/:id
 // @desc Delete a coupon
 // @access private
-router.delete("/:id", protect, async (req, res) => {
+router.delete("/:id", protectUser, roleAuth(["user"]), async (req, res) => {
   try {
     const coupon = await Coupon.findByIdAndDelete(req.params.id);
     if (!coupon) {

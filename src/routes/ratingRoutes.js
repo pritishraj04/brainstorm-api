@@ -2,7 +2,8 @@ import { Router } from "express";
 import Rating from "../models/Rating.js";
 import Product from "../models/Product.js";
 import Customer from "../models/Customer.js";
-import protect from "../middleware/authMiddleware.js";
+import { protectCustomer } from "../middleware/authMiddleware.js";
+import roleAuth from "../middleware/allowedRole.js";
 
 const router = Router();
 
@@ -23,7 +24,7 @@ router.get("/", async (req, res) => {
 // @desc Create a new rating
 // @access Private
 
-router.post("/", protect, async (req, res) => {
+router.post("/", protectCustomer, roleAuth(["customer"]), async (req, res) => {
   try {
     const { productId, customerId, rating, comment } = req.body;
     const product = await Product.findById(productId);

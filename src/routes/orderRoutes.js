@@ -1,10 +1,12 @@
 import { Router } from "express";
-import protect from "../middleware/authMiddleware.js";
+import { protectUser, protectCustomer } from "../middleware/authMiddleware.js";
 import Order from "../models/Order.js";
 import Customer from "../models/Customer.js";
 import Product from "../models/Product.js";
 import Coupon from "../models/Coupon.js";
 import applyCoupon from "../utils/applyCoupon.js";
+import getNextOrderNumber from "../utils/getNextOrderNumber.js";
+import roleAuth from "../middleware/allowedRole.js";
 
 const router = new Router();
 
@@ -20,7 +22,7 @@ const ALLOWED_PAYMENT_STATUSES = ["Pending", "Paid", "Failed"];
 // @route GET /api/v1/orders
 // @desc  Get all orders
 // @access Private
-router.get("/", protect, async (req, res) => {
+router.get("/", protectUser, roleAuth(["user"]), async (req, res) => {
   try {
     const orders = await Order.find({});
 
@@ -33,117 +35,144 @@ router.get("/", protect, async (req, res) => {
 // @route POST /api/v1/orders
 // @desc  Create an order
 // @access Private
-router.post("/", protect, async (req, res) => {
-  try {
-    const { customerId, items, address, transactionId, note, couponCode } =
-      req.body;
+router.post(
+  "/",
+  protectCustomer,
+  roleAuth(["user", "customer"]),
+  async (req, res) => {
+    try {
+      const {
+        customerId,
+        items,
+        address,
+        shippingMethod,
+        shippingCost,
+        paymentMethod,
+        transactionId,
+        note,
+        couponCode,
+      } = req.body;
 
-    const customer = await Customer.findById(customerId);
-    if (!customer) {
-      return res.status(404).json({ message: "Customer not found" });
-    }
-
-    let totalAmount = 0;
-    const orderItems = [];
-    const productsToUpdate = [];
-    for (const item of items) {
-      const product = await Product.findById(item.productId);
-
-      if (!product) {
-        return res
-          .status(404)
-          .json({ message: `Product with ID ${item.productId} not found` });
+      const customer = await Customer.findById(customerId);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
       }
 
-      if (product.stock < item.quantity) {
-        return res
-          .status(400)
-          .json({ message: `Not enough stock for product: ${product.name}` });
+      let totalAmount = 0;
+      const orderItems = [];
+      const productsToUpdate = [];
+      for (const item of items) {
+        const product = await Product.findById(item.productId);
+
+        if (!product) {
+          return res
+            .status(404)
+            .json({ message: `Product with ID ${item.productId} not found` });
+        }
+
+        if (product.stock < item.quantity) {
+          return res
+            .status(400)
+            .json({ message: `Not enough stock for product: ${product.name}` });
+        }
+
+        const price = Number(product.sellingPrice);
+        const quantity = Number(item.quantity);
+
+        if (isNaN(price) || isNaN(quantity)) {
+          return res.status(400).json({ message: "Invalid price or quantity" });
+        }
+
+        if (shippingCost && isNaN(shippingCost)) {
+          return res.status(400).json({ message: "Invalid shipping cost" });
+        }
+
+        const itemTotal = price * quantity;
+        totalAmount += itemTotal;
+        orderItems.push({
+          product: product._id,
+          quantity: item.quantity,
+          price: itemTotal,
+        });
+
+        productsToUpdate.push(product);
       }
 
-      const price = Number(product.sellingPrice);
-      const quantity = Number(item.quantity);
+      // logic for coupon
+      let discount = 0;
+      let finalAmount = totalAmount;
 
-      if (isNaN(price) || isNaN(quantity)) {
-        return res.status(400).json({ message: "Invalid price or quantity" });
+      if (couponCode) {
+        try {
+          const { discountAmount, newTotal } = await applyCoupon(
+            couponCode,
+            totalAmount
+          );
+
+          discount = discountAmount;
+          finalAmount = newTotal;
+        } catch (error) {
+          return res.status(400).json({ message: error.message });
+        }
       }
 
-      const itemTotal = price * quantity;
-      totalAmount += itemTotal;
-      orderItems.push({
-        product: product._id,
-        quantity: item.quantity,
-        price: itemTotal,
+      for (const item of orderItems) {
+        const product = productsToUpdate.find((p) =>
+          p._id.equals(item.product)
+        );
+        product.stock -= item.quantity;
+        await product.save();
+      }
+
+      const orderNumber = await getNextOrderNumber();
+
+      const newOrder = new Order({
+        customer: customer._id,
+        items: orderItems,
+        totalAmount: finalAmount,
+        couponCode,
+        shippingMethod,
+        shippingCost,
+        paymentMethod,
+        discount,
+        status: "Pending",
+        paymentStatus: "Pending",
+        comments: [...comments, { comment: "Order is placed" }],
+        orderNumber,
+        transactionId,
+        note,
+        address: {
+          street: address.street,
+          city: address.city,
+          state: address.state,
+          postalCode: address.postalCode,
+          country: address.country,
+        },
       });
 
-      productsToUpdate.push(product);
-    }
+      await newOrder.save();
 
-    // logic for coupon
-    let discount = 0;
-    let finalAmount = totalAmount;
-
-    if (couponCode) {
-      try {
-        const { discountAmount, newTotal } = await applyCoupon(
-          couponCode,
-          totalAmount
+      if (couponCode) {
+        await Coupon.updateOne(
+          { code: couponCode },
+          { $inc: { usageLimit: -1 } }
         );
-
-        discount = discountAmount;
-        finalAmount = newTotal;
-      } catch (error) {
-        return res.status(400).json({ message: error.message });
       }
+
+      customer.orderHistory.push(newOrder._id);
+      await customer.save();
+
+      res.status(201).json(newOrder);
+    } catch (error) {
+      res.status(400).json({ message: "Server error", err: error.message });
     }
-
-    for (const item of orderItems) {
-      const product = productsToUpdate.find((p) => p._id.equals(item.product));
-      product.stock -= item.quantity;
-      await product.save();
-    }
-
-    const newOrder = new Order({
-      customer: customer._id,
-      items: orderItems,
-      totalAmount: finalAmount,
-      couponCode,
-      discount,
-      status: "Pending",
-      paymentStatus: "Pending",
-      transactionId,
-      note,
-      address: {
-        street: address.street,
-        city: address.city,
-        state: address.state,
-        postalCode: address.postalCode,
-        country: address.country,
-      },
-    });
-
-    await newOrder.save();
-
-    if (couponCode) {
-      await Coupon.updateOne(
-        { code: couponCode },
-        { $inc: { usageLimit: -1 } }
-      );
-    }
-
-    customer.orderHistory.push(newOrder._id);
-    await customer.save();
-
-    res.status(201).json(newOrder);
-  } catch (error) {
-    res.status(400).json({ message: "Server error", err: error.message });
   }
-});
+);
 
 // @route PATCH /api/v1/orders/:id
 // @desc  Create an order
 // @access Private
-router.patch("/:id", protect, async (req, res) => {
+router.patch("/:id", protectUser, roleAuth(["user"]), async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -185,7 +214,13 @@ router.patch("/:id", protect, async (req, res) => {
     }
 
     Object.keys(updates).forEach((key) => {
-      order[key] = updates[key];
+      if (key != "comments") {
+        order[key] = updates[key];
+      } else {
+        updates[key].forEach((com) => {
+          order.comments.push(com);
+        });
+      }
     });
 
     const updatedOrder = await order.save();
