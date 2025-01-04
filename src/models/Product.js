@@ -23,8 +23,8 @@ const productSchema = new Schema(
       required: true,
     },
     category: {
-      type: String,
-      enum: ["Food", "Beverage", "Other"],
+      type: Schema.Types.ObjectId,
+      ref: "Category",
       required: true,
     },
     stock: { type: Number, required: true, default: 0 },

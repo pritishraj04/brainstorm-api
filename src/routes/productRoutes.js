@@ -1,5 +1,6 @@
 import { Router } from "express";
 import Product from "../models/Product.js";
+import Category from "../models/Category.js";
 import { protectUser } from "../middleware/authMiddleware.js";
 import roleAuth from "../middleware/allowedRole.js";
 
@@ -28,7 +29,7 @@ router.post("/", protectUser, roleAuth(["user"]), async (req, res) => {
       basePrice,
       sellingPrice,
       costToCompany,
-      category,
+      categoryId,
       images,
       tags,
       specifications,
@@ -42,19 +43,29 @@ router.post("/", protectUser, roleAuth(["user"]), async (req, res) => {
         .json({ message: "Product with this name already exist" });
     }
 
+    const category = await Category.findById(categoryId);
+    if (!category) {
+      return res.status(404).json({ message: "Category not found" });
+    }
     const product = new Product({
       name,
       description,
       basePrice,
       sellingPrice,
       costToCompany,
-      category,
+      category: categoryId,
       images,
       tags,
       specifications,
     });
 
     const createdProduct = await product.save();
+
+    await Category.findByIdAndUpdate(
+      categoryId,
+      { $push: { products: createdProduct._id } },
+      { new: true }
+    );
     res.status(201).json(createdProduct);
   } catch (error) {
     res.status(500).json({ message: "Server Error", err: error.message });
@@ -85,6 +96,24 @@ router.patch("/:id", protectUser, roleAuth(["user"]), async (req, res) => {
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
+    if (updates.category) {
+      const category = await Category.findById(updates.category);
+      if (!category) {
+        return res.status(404).json({ message: "Category not found" });
+      }
+      // remove the product from the category and update the product in the new category
+      await Category.findByIdAndUpdate(
+        product.category,
+        { $pull: { products: product._id } },
+        { new: true }
+      );
+      await Category.findByIdAndUpdate(
+        updates.category,
+        { $push: { products: product._id } },
+        { new: true }
+      );
+      product.category = updates.category;
+    }
 
     Object.keys(updates).forEach((key) => {
       product[key] = updates[key];
@@ -92,6 +121,34 @@ router.patch("/:id", protectUser, roleAuth(["user"]), async (req, res) => {
 
     const updatedProduct = await product.save();
     res.json(updatedProduct);
+  } catch (error) {
+    res.status(500).json({ message: "Server Error", err: error.message });
+  }
+});
+
+// @route DELETE /api/v1/products/:id
+// @desc Delete a product
+// @access Private
+// @param {string} id
+
+router.delete("/:id", protectUser, roleAuth(["user"]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const product = await Product.findById(id);
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+    // Delete product id from category
+    await Category.findByIdAndUpdate(
+      product.category,
+      { $pull: { products: product._id } },
+      { new: true }
+    );
+
+    await Product.deleteOne({ _id: id });
+
+    res.json({ message: "Product deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server Error", err: error.message });
   }

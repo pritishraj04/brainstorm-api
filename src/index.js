@@ -3,6 +3,7 @@ import { connect } from "mongoose";
 import { config } from "dotenv";
 import cors from "cors";
 
+import categoryRoutes from "./routes/categoryRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import customerRoutes from "./routes/customerRoutes.js";
@@ -31,6 +32,7 @@ app.use("/api/v1/customers", customerRoutes);
 app.use("/api/v1/ratings", ratingRoutes);
 app.use("/api/v1/orders", orderRoutes);
 app.use("/api/v1/coupons", couponRoutes);
+app.use("/api/v1/categories", categoryRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
