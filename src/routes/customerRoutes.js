@@ -1,6 +1,6 @@
 import { Router } from "express";
 import Customer from "../models/Customer.js";
-import { protectCustomer, protectUser } from "../middleware/authMiddleware.js";
+import protect from "../middleware/authMiddleware.js";
 import roleAuth from "../middleware/allowedRole.js";
 import generateToken from "../utils/generateTokens.js";
 
@@ -9,7 +9,8 @@ const router = Router();
 // @route GET /api/v1/customers/
 // @desc  Get all the customers
 // @access Private
-router.get("/", protectUser, roleAuth(["user"]), async (req, res) => {
+
+router.get("/", protect, roleAuth(["user", "admin"]), async (req, res) => {
   try {
     const customers = await Customer.find({});
     res.json(customers);
@@ -20,7 +21,8 @@ router.get("/", protectUser, roleAuth(["user"]), async (req, res) => {
 
 // @route POST /api/v1/customers/
 // @desc  Create a customer
-// @access Private
+// @access Public
+
 router.post("/", async (req, res) => {
   try {
     const { name, email, phone, password } = req.body;
@@ -56,10 +58,12 @@ router.post("/", async (req, res) => {
 // @route PATCH /api/v1/customers/:id
 // @desc  Edit customer details except email address
 // @access Private
+// @param {string} id
+
 router.patch(
   "/:id",
-  protectCustomer,
-  roleAuth(["user", "customer"]),
+  protect,
+  roleAuth(["user", "customer", "admin"]),
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -94,11 +98,12 @@ router.patch(
 // @route POST /api/v1/customers/:customerId/addresses
 // @desc  Create customer address
 // @access Private
+// @param {string} id
 
 router.post(
   "/:id/addresses",
-  protectCustomer,
-  roleAuth(["user", "customer"]),
+  protect,
+  roleAuth(["user", "customer", "admin"]),
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -121,11 +126,12 @@ router.post(
 // @route PUT /api/v1/customers/:customerId/addresses/:addressId
 // @desc  Update customer address
 // @access Private
+// @param {string} id
 
 router.put(
   "/:id/addresses/:addressId",
-  protectCustomer,
-  roleAuth(["user", "customer"]),
+  protect,
+  roleAuth(["user", "customer", "admin"]),
   async (req, res) => {
     try {
       const { id, addressId } = req.params;
@@ -153,11 +159,12 @@ router.put(
 // @route DELETE /api/v1/customers/:customerId/addresses/:addressId
 // @desc  Delete customer address
 // @access Private
+// @param {string} id
 
 router.delete(
   "/:id/addresses/:addressId",
-  protectCustomer,
-  roleAuth(["user", "customer"]),
+  protect,
+  roleAuth(["user", "customer", "admin"]),
   async (req, res) => {
     try {
       const { id, addressId } = req.params;
@@ -181,11 +188,12 @@ router.delete(
 // @route PUT /:customerId/addresses/:addressId/default
 // @desc
 // @access Private
+// @param {string} id
 
 router.put(
   "/customers/:id/addresses/:addressId/default",
-  protectCustomer,
-  roleAuth(["user", "customer"]),
+  protect,
+  roleAuth(["user", "customer", "admin"]),
   async (req, res) => {
     try {
       const { id, addressId } = req.params;
@@ -210,6 +218,7 @@ router.put(
 // @route   POST /api/v1/customers/login
 // @desc    Authenticate a customer & get token
 // @access  Public
+
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {

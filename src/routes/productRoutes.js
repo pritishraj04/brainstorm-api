@@ -1,7 +1,7 @@
 import { Router } from "express";
 import Product from "../models/Product.js";
 import Category from "../models/Category.js";
-import { protectUser } from "../middleware/authMiddleware.js";
+import protect from "../middleware/authMiddleware.js";
 import roleAuth from "../middleware/allowedRole.js";
 
 const router = Router();
@@ -9,6 +9,7 @@ const router = Router();
 // @route GET /api/v1/products
 // @desc  Get all products
 // @access Public
+
 router.get("/", async (req, res) => {
   try {
     const products = await Product.find({});
@@ -21,7 +22,8 @@ router.get("/", async (req, res) => {
 // @route POST /api/v1/products
 // @desc  Create a product
 // @access Private
-router.post("/", protectUser, roleAuth(["user"]), async (req, res) => {
+
+router.post("/", protect, roleAuth(["user", "admin"]), async (req, res) => {
   try {
     const {
       name,
@@ -75,7 +77,8 @@ router.post("/", protectUser, roleAuth(["user"]), async (req, res) => {
 // @route PATCH /api/v1/products/:id
 // @desc  update a product field except the name field
 // @access Private
-router.patch("/:id", protectUser, roleAuth(["user"]), async (req, res) => {
+
+router.patch("/:id", protect, roleAuth(["user", "admin"]), async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
@@ -131,27 +134,32 @@ router.patch("/:id", protectUser, roleAuth(["user"]), async (req, res) => {
 // @access Private
 // @param {string} id
 
-router.delete("/:id", protectUser, roleAuth(["user"]), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const product = await Product.findById(id);
+router.delete(
+  "/:id",
+  protect,
+  roleAuth(["user", "admin"]),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const product = await Product.findById(id);
 
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      // Delete product id from category
+      await Category.findByIdAndUpdate(
+        product.category,
+        { $pull: { products: product._id } },
+        { new: true }
+      );
+
+      await Product.deleteOne({ _id: id });
+
+      res.json({ message: "Product deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Server Error", err: error.message });
     }
-    // Delete product id from category
-    await Category.findByIdAndUpdate(
-      product.category,
-      { $pull: { products: product._id } },
-      { new: true }
-    );
-
-    await Product.deleteOne({ _id: id });
-
-    res.json({ message: "Product deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Server Error", err: error.message });
   }
-});
+);
 
 export default router;

@@ -1,13 +1,14 @@
 import { Router } from "express";
 import Coupon from "../models/Coupon.js";
-import { protectUser } from "../middleware/authMiddleware.js";
+import protect from "../middleware/authMiddleware.js";
 import roleAuth from "../middleware/allowedRole.js";
 
 const router = new Router();
 
 // @route GET /api/v1/coupons/
 // @desc Get a list of coupons
-// @access public
+// @access Public
+
 router.get("/", async (req, res) => {
   try {
     const coupons = await Coupon.find({});
@@ -20,8 +21,9 @@ router.get("/", async (req, res) => {
 
 // @route POST /api/v1/coupons/
 // @desc Create a new coupon
-// @access private
-router.post("/", protectUser, roleAuth(["user"]), async (req, res) => {
+// @access Private
+
+router.post("/", protect, roleAuth(["user", "admin"]), async (req, res) => {
   try {
     const { code, discount, discountPriceLimit, usageLimit, expirationDate } =
       req.body;
@@ -47,10 +49,11 @@ router.post("/", protectUser, roleAuth(["user"]), async (req, res) => {
 });
 
 // @route PATCH /api/v1/coupons/:id
-// @desc update a coupon
-// @access private
+// @desc Update a coupon
+// @access Private
+// @param {string} id
 
-router.patch("/:id", protectUser, roleAuth(["user"]), async (req, res) => {
+router.patch("/:id", protect, roleAuth(["user", "admin"]), async (req, res) => {
   try {
     const { code, discount, discountPriceLimit, usageLimit, expirationDate } =
       req.body;
@@ -77,17 +80,24 @@ router.patch("/:id", protectUser, roleAuth(["user"]), async (req, res) => {
 
 // @route DELETE /api/v1/coupons/:id
 // @desc Delete a coupon
-// @access private
-router.delete("/:id", protectUser, roleAuth(["user"]), async (req, res) => {
-  try {
-    const coupon = await Coupon.findByIdAndDelete(req.params.id);
-    if (!coupon) {
-      return res.status(404).json({ message: "Coupon not found" });
+// @access Private
+// @param {string} id
+
+router.delete(
+  "/:id",
+  protect,
+  roleAuth(["user", "admin"]),
+  async (req, res) => {
+    try {
+      const coupon = await Coupon.findByIdAndDelete(req.params.id);
+      if (!coupon) {
+        return res.status(404).json({ message: "Coupon not found" });
+      }
+      res.json({ message: "Coupon deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Server error", err: error.message });
     }
-    res.json({ message: "Coupon deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", err: error.message });
   }
-});
+);
 
 export default router;

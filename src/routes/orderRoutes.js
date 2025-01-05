@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { protectUser, protectCustomer } from "../middleware/authMiddleware.js";
+import protect from "../middleware/authMiddleware.js";
 import Order from "../models/Order.js";
 import Customer from "../models/Customer.js";
 import Product from "../models/Product.js";
@@ -22,7 +22,8 @@ const ALLOWED_PAYMENT_STATUSES = ["Pending", "Paid", "Failed"];
 // @route GET /api/v1/orders
 // @desc  Get all orders
 // @access Private
-router.get("/", protectUser, roleAuth(["user"]), async (req, res) => {
+
+router.get("/", protect, roleAuth(["user", "admin"]), async (req, res) => {
   try {
     const orders = await Order.find({});
 
@@ -35,10 +36,11 @@ router.get("/", protectUser, roleAuth(["user"]), async (req, res) => {
 // @route POST /api/v1/orders
 // @desc  Create an order
 // @access Private
+
 router.post(
   "/",
-  protectCustomer,
-  roleAuth(["user", "customer"]),
+  protect,
+  roleAuth(["user", "customer", "admin"]),
   async (req, res) => {
     try {
       const {
@@ -172,7 +174,8 @@ router.post(
 // @route PATCH /api/v1/orders/:id
 // @desc  Create an order
 // @access Private
-router.patch("/:id", protectUser, roleAuth(["user"]), async (req, res) => {
+
+router.patch("/:id", protect, roleAuth(["user", "admin"]), async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;

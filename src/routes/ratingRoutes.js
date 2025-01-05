@@ -2,7 +2,7 @@ import { Router } from "express";
 import Rating from "../models/Rating.js";
 import Product from "../models/Product.js";
 import Customer from "../models/Customer.js";
-import { protectCustomer } from "../middleware/authMiddleware.js";
+import protect from "../middleware/authMiddleware.js";
 import roleAuth from "../middleware/allowedRole.js";
 
 const router = Router();
@@ -24,7 +24,7 @@ router.get("/", async (req, res) => {
 // @desc Create a new rating
 // @access Private
 
-router.post("/", protectCustomer, roleAuth(["customer"]), async (req, res) => {
+router.post("/", protect, roleAuth(["customer"]), async (req, res) => {
   try {
     const { productId, customerId, rating, comment } = req.body;
     const product = await Product.findById(productId);
@@ -85,4 +85,10 @@ router.post("/", protectCustomer, roleAuth(["customer"]), async (req, res) => {
   }
 });
 
+// @route DELETE /api/v1/ratings/:id
+// @desc DELETE a rating
+// @access Protected
+// @param {string} id
+
+// TODO: Add delete method
 export default router;

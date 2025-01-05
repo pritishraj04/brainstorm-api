@@ -1,16 +1,28 @@
-// import Product from "./models/Product.js";
+import mongoose from "mongoose";
 
-// const updateProductdatabase = () => {
-//   try {
-//     Product.updateMany(
-//       { rating: { $exists: false } },
-//       { $set: { rating: [], avgRating: 0 } },
-//       { multi: true }
-//     );
-//     console.log("Product updated successfully");
-//   } catch (error) {
-//     console.log(error.message);
-//   }
-// };
+import User from "./models/Users.js";
+import { config } from "dotenv";
+
+config();
+
+const mongoURI = process.env.DB_URI;
+
+const updateProductdatabase = async () => {
+  try {
+    await mongoose.connect(mongoURI);
+    const users = await User.find({});
+    console.log(users);
+
+    // User.updateMany({}, { $unset: { role: 1 } });
+    // console.log("User updated successfully");
+    // console.log(users);
+  } catch (error) {
+    console.log(error.message);
+  } finally {
+    // Close the connection to the database
+    await mongoose.connection.close();
+    console.log("Database connection closed");
+  }
+};
 
 // updateProductdatabase();

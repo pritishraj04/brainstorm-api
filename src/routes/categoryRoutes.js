@@ -1,7 +1,7 @@
 import { Router } from "express";
 import Category from "../models/Category.js";
 import Product from "../models/Product.js";
-import { protectUser } from "../middleware/authMiddleware.js";
+import protect from "../middleware/authMiddleware.js";
 import roleAuth from "../middleware/allowedRole.js";
 
 const router = new Router();
@@ -23,7 +23,7 @@ router.get("/", async (req, res) => {
 // @desc  Create a new category
 // @access Private
 
-router.post("/", protectUser, roleAuth(["user"]), async (req, res) => {
+router.post("/", protect, roleAuth(["user", "admin"]), async (req, res) => {
   try {
     const { name, description } = req.body;
 
@@ -52,10 +52,11 @@ router.post("/", protectUser, roleAuth(["user"]), async (req, res) => {
 // @desc update a category except the name field
 // @access Private
 // @param {string} id
+
 router.patch(
   "/:id",
-  protectUser,
-  roleAuth(["user"]),
+  protect,
+  roleAuth(["user", "admin"]),
   async function (req, res) {
     try {
       const { id } = req.params; // Current category ID
@@ -82,11 +83,9 @@ router.patch(
 
           // Check if both product and new category exist
           if (!productId || !newCategoryId) {
-            return res
-              .status(400)
-              .json({
-                message: "Please provide both product ID and new category ID",
-              });
+            return res.status(400).json({
+              message: "Please provide both product ID and new category ID",
+            });
           }
 
           const product = await Product.findById(productId);
@@ -140,25 +139,30 @@ router.patch(
 // @access Private
 // @param {string} id
 
-router.delete("/:id", protectUser, roleAuth(["user"]), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const category = await Category.findById(id);
-    if (!category) {
-      return res.status(404).json({ message: "Category not found" });
-    }
-    const products = await Product.find({ category: id });
-    if (products.length > 0) {
-      return res
-        .status(400)
-        .json({ message: "Cannot delete category with products" });
-    }
+router.delete(
+  "/:id",
+  protect,
+  roleAuth(["user", "admin"]),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const category = await Category.findById(id);
+      if (!category) {
+        return res.status(404).json({ message: "Category not found" });
+      }
+      const products = await Product.find({ category: id });
+      if (products.length > 0) {
+        return res
+          .status(400)
+          .json({ message: "Cannot delete category with products" });
+      }
 
-    await Category.deleteOne({ _id: id });
-    res.json({ message: "Category deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Server Error", err: error.message });
+      await Category.deleteOne({ _id: id });
+      res.json({ message: "Category deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Server Error", err: error.message });
+    }
   }
-});
+);
 
 export default router;
