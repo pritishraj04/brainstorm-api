@@ -1,5 +1,9 @@
 import { Router } from "express";
-import Category from "../models/Category.js";
+import Category, {
+  createCategoryValidation,
+  updateCategoryValidation,
+} from "../models/Category.js";
+import validate from "../middleware/validationMiddleware.js";
 import Product from "../models/Product.js";
 import protect from "../middleware/authMiddleware.js";
 import roleAuth from "../middleware/allowedRole.js";
@@ -23,30 +27,36 @@ router.get("/", async (req, res) => {
 // @desc  Create a new category
 // @access Private
 
-router.post("/", protect, roleAuth(["user", "admin"]), async (req, res) => {
-  try {
-    const { name, description } = req.body;
+router.post(
+  "/",
+  protect,
+  roleAuth(["user", "admin"]),
+  validate(createCategoryValidation),
+  async (req, res) => {
+    try {
+      const { name, description } = req.body;
 
-    if (!name || !description) {
-      return res
-        .status(400)
-        .json({ message: "Please provide name and description" });
+      if (!name || !description) {
+        return res
+          .status(400)
+          .json({ message: "Please provide name and description" });
+      }
+      const existingCategory = await Category.findOne({ name });
+      if (existingCategory) {
+        return res
+          .status(400)
+          .json({ message: "Category with this name already exists" });
+      }
+
+      const newCategory = new Category({ name, description });
+      const category = await newCategory.save();
+
+      res.status(201).json(category);
+    } catch (error) {
+      res.status(500).json({ message: "Server Error", err: error.message });
     }
-    const existingCategory = await Category.findOne({ name });
-    if (existingCategory) {
-      return res
-        .status(400)
-        .json({ message: "Category with this name already exists" });
-    }
-
-    const newCategory = new Category({ name, description });
-    const category = await newCategory.save();
-
-    res.status(201).json(category);
-  } catch (error) {
-    res.status(500).json({ message: "Server Error", err: error.message });
   }
-});
+);
 
 // @route PATCH /api/v1/categories/:id
 // @desc update a category except the name field
@@ -57,6 +67,7 @@ router.patch(
   "/:id",
   protect,
   roleAuth(["user", "admin"]),
+  validate(updateCategoryValidation),
   async function (req, res) {
     try {
       const { id } = req.params; // Current category ID

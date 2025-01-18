@@ -1,5 +1,9 @@
 import express from "express";
-import User from "../models/Users.js";
+import User, {
+  userCreateValidation,
+  userUpdateValidation,
+} from "../models/Users.js";
+import validate from "../middleware/validationMiddleware.js";
 import generateToken from "../utils/generateTokens.js";
 import protect from "../middleware/authMiddleware.js";
 import roleAuth from "../middleware/allowedRole.js";
@@ -39,7 +43,7 @@ router.post("/login", async (req, res) => {
 // @desc Create user & get token
 // @access Public
 
-router.post("/register", async (req, res) => {
+router.post("/register", validate(userCreateValidation), async (req, res) => {
   const { username, email, password, role } = req.body;
   try {
     const existingUser = await User.findOne({ email });
@@ -74,37 +78,43 @@ router.post("/register", async (req, res) => {
 // @desc Update password role role
 // @access Protected
 // @param {string} id
-router.patch("/:id", protect, roleAuth(["admin"]), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updates = req.body;
+router.patch(
+  "/:id",
+  protect,
+  roleAuth(["admin"]),
+  validate(userUpdateValidation),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
 
-    if (updates.username) {
-      res.status(400).json({ message: "Can not update username" });
-    }
-    if (updates.email) {
-      res.status(400).json({ message: "Can not update email" });
-    }
-    if (updates.token) {
-      res.status(400).json({ message: "Can not update token" });
-    }
+      if (updates.username) {
+        res.status(400).json({ message: "Can not update username" });
+      }
+      if (updates.email) {
+        res.status(400).json({ message: "Can not update email" });
+      }
+      if (updates.token) {
+        res.status(400).json({ message: "Can not update token" });
+      }
 
-    const user = await User.findById(id);
+      const user = await User.findById(id);
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
 
-    Object.keys(updates).forEach((key) => {
-      user[key] = updates[key];
-    });
-    const updatedUser = await user.save();
-    res.json({
-      username: updatedUser.username,
-      email: updatedUser.email,
-      role: updatedUser.role,
-    });
-  } catch (error) {}
-});
+      Object.keys(updates).forEach((key) => {
+        user[key] = updates[key];
+      });
+      const updatedUser = await user.save();
+      res.json({
+        username: updatedUser.username,
+        email: updatedUser.email,
+        role: updatedUser.role,
+      });
+    } catch (error) {}
+  }
+);
 
 export default router;
