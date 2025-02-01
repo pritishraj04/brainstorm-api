@@ -1,8 +1,14 @@
 import { Router } from "express";
-import Customer from "../models/Customer.js";
+import Customer, {
+  createAddressValidation,
+  createCustomerValidation,
+  updateAddressValidation,
+  updateCustomerValidation,
+} from "../models/Customer.js";
 import protect from "../middleware/authMiddleware.js";
 import roleAuth from "../middleware/allowedRole.js";
 import generateToken from "../utils/generateTokens.js";
+import validate from "../middleware/validationMiddleware.js";
 
 const router = Router();
 
@@ -23,7 +29,7 @@ router.get("/", protect, roleAuth(["user", "admin"]), async (req, res) => {
 // @desc  Create a customer
 // @access Public
 
-router.post("/", async (req, res) => {
+router.post("/", validate(createCustomerValidation), async (req, res) => {
   try {
     const { name, email, phone, password } = req.body;
 
@@ -64,6 +70,7 @@ router.patch(
   "/:id",
   protect,
   roleAuth(["user", "customer", "admin"]),
+  validate(updateCustomerValidation),
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -104,6 +111,7 @@ router.post(
   "/:id/addresses",
   protect,
   roleAuth(["user", "customer", "admin"]),
+  validate(createAddressValidation),
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -132,6 +140,7 @@ router.put(
   "/:id/addresses/:addressId",
   protect,
   roleAuth(["user", "customer", "admin"]),
+  validate(updateAddressValidation),
   async (req, res) => {
     try {
       const { id, addressId } = req.params;
@@ -194,6 +203,7 @@ router.put(
   "/customers/:id/addresses/:addressId/default",
   protect,
   roleAuth(["user", "customer", "admin"]),
+  validate(updateAddressValidation),
   async (req, res) => {
     try {
       const { id, addressId } = req.params;

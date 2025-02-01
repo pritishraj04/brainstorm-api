@@ -1,3 +1,4 @@
+import Joi from "joi";
 import { Schema, model } from "mongoose";
 
 const productSchema = new Schema(
@@ -42,6 +43,46 @@ const productSchema = new Schema(
     timestamps: true,
   }
 );
+
+// validation
+
+export const createProductValidation = Joi.object({
+  name: Joi.string().min(3).max(50).required(),
+  description: Joi.string().max(255),
+  tags: Joi.array().items(Joi.string()).min(1).max(10),
+  specifications: Joi.array().items(Joi.string()),
+  basePrice: Joi.number().min(0).required(),
+  sellingPrice: Joi.number().min(0).required(),
+  costToCompany: Joi.number().min(0).required(),
+  category: Joi.string().required(),
+  stock: Joi.number().min(0).required(),
+  active: Joi.boolean().required(),
+  images: Joi.array().items(
+    Joi.object({
+      imgurl: Joi.string().required(),
+      isCover: Joi.boolean().required(),
+    })
+  ),
+});
+
+export const updateProductValidation = Joi.object({
+  name: Joi.string().min(3).max(50),
+  description: Joi.string().max(255),
+  tags: Joi.array().items(Joi.string()).min(1).max(10),
+  specifications: Joi.array().items(Joi.string()),
+  basePrice: Joi.number().min(0),
+  sellingPrice: Joi.number().min(0),
+  costToCompany: Joi.number().min(0),
+  category: Joi.string(),
+  stock: Joi.number().min(0),
+  active: Joi.boolean(),
+  images: Joi.array().items(
+    Joi.object({
+      imgurl: Joi.string(),
+      isCover: Joi.boolean(),
+    })
+  ),
+});
 
 const Product = model("Product", productSchema);
 

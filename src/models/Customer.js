@@ -1,5 +1,6 @@
 import { Schema, model } from "mongoose";
 import bcrypt from "bcryptjs";
+import Joi from "joi";
 
 const customerSchema = new Schema(
   {
@@ -23,7 +24,7 @@ const customerSchema = new Schema(
     },
     addresses: [
       {
-        label: { type: String }, // E.g., "Home", "Work", etc.
+        label: { type: String, required: true }, // E.g., "Home", "Work", etc.
         street: { type: String, required: true },
         city: { type: String, required: true },
         state: { type: String, required: true },
@@ -58,6 +59,55 @@ customerSchema.pre("save", async function (next) {
 customerSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
+
+const passwordRegex = new RegExp(
+  /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$%^&*-]).{6,20}$/
+);
+
+export const createCustomerValidation = Joi.object({
+  name: Joi.string().min(3).max(30).required(),
+  email: Joi.string().email().required(),
+  phone: Joi.string().min(10).required(),
+  password: Joi.string()
+    .pattern(passwordRegex)
+    .messages({
+      "string.pattern.base":
+        "Password must be strong. At least one upper case alphabet, one lower case alphabet, one digit and one special character. Password length must be between 6 and 20.",
+
+      "string.empty": "Password cannot be empty.",
+      "any.required": "Password is required.",
+    })
+    .required(),
+});
+export const updateCustomerValidation = Joi.object({
+  name: Joi.string().min(3).max(30),
+  phone: Joi.string().min(10),
+  password: Joi.string().pattern(passwordRegex).messages({
+    "string.pattern.base":
+      "Password must be strong. At least one upper case alphabet, one lower case alphabet, one digit and one special character. Password length must be between 6 and 20.",
+
+    "string.empty": "Password cannot be empty.",
+    "any.required": "Password is required.",
+  }),
+});
+export const createAddressValidation = Joi.object({
+  label: Joi.string().required(),
+  street: Joi.string().required(),
+  city: Joi.string().required(),
+  state: Joi.string().required(),
+  postalCode: Joi.string().required(),
+  country: Joi.string().required(),
+  isDefault: Joi.boolean().default(false),
+});
+export const updateAddressValidation = Joi.object({
+  label: Joi.string(),
+  street: Joi.string(),
+  city: Joi.string(),
+  state: Joi.string(),
+  postalCode: Joi.string(),
+  country: Joi.string(),
+  isDefault: Joi.boolean(),
+});
 
 const Customer = model("Customer", customerSchema);
 

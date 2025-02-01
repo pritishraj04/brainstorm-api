@@ -1,12 +1,16 @@
 import { Router } from "express";
 import protect from "../middleware/authMiddleware.js";
-import Order from "../models/Order.js";
+import Order, {
+  createOrderValidation,
+  updateOrderValidation,
+} from "../models/Order.js";
 import Customer from "../models/Customer.js";
 import Product from "../models/Product.js";
 import Coupon from "../models/Coupon.js";
 import applyCoupon from "../utils/applyCoupon.js";
 import getNextOrderNumber from "../utils/getNextOrderNumber.js";
 import roleAuth from "../middleware/allowedRole.js";
+import validate from "../middleware/validationMiddleware.js";
 
 const router = new Router();
 
@@ -41,6 +45,7 @@ router.post(
   "/",
   protect,
   roleAuth(["user", "customer", "admin"]),
+  validate(createOrderValidation),
   async (req, res) => {
     try {
       const {
@@ -175,62 +180,70 @@ router.post(
 // @desc  Create an order
 // @access Private
 
-router.patch("/:id", protect, roleAuth(["user", "admin"]), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updates = req.body;
+router.patch(
+  "/:id",
+  protect,
+  roleAuth(["user", "admin"]),
+  validate(updateOrderValidation),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
 
-    if (updates.orderDate || updates.customer) {
-      return res
-        .status(400)
-        .json({ message: "Cannot update order date or customer" });
-    }
-    if (updates.address) {
-      return res
-        .status(400)
-        .json({ message: "Cannot update address in a placed order" });
-    }
-    if (updates.items) {
-      return res
-        .status(400)
-        .json({ message: "Cannot update items in a placed order" });
-    }
-    if (updates.totalAmount) {
-      return res
-        .status(400)
-        .json({ message: "Cannot update total amount in a placed order" });
-    }
-    if (updates.status && !ALLOWED_ORDER_STATUSES.includes(updates.status)) {
-      return res.status(400).json({ message: "Order status set is invalid" });
-    }
-    if (
-      updates.paymentStatus &&
-      !ALLOWED_PAYMENT_STATUSES.includes(updates.paymentStatus)
-    ) {
-      return res.status(400).json({ message: "Payment status set is invalid" });
-    }
-
-    const order = await Order.findById(id);
-
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-
-    Object.keys(updates).forEach((key) => {
-      if (key != "comments") {
-        order[key] = updates[key];
-      } else {
-        updates[key].forEach((com) => {
-          order.comments.push(com);
-        });
+      if (updates.orderDate || updates.customer) {
+        return res
+          .status(400)
+          .json({ message: "Cannot update order date or customer" });
       }
-    });
+      if (updates.address) {
+        return res
+          .status(400)
+          .json({ message: "Cannot update address in a placed order" });
+      }
+      if (updates.items) {
+        return res
+          .status(400)
+          .json({ message: "Cannot update items in a placed order" });
+      }
+      if (updates.totalAmount) {
+        return res
+          .status(400)
+          .json({ message: "Cannot update total amount in a placed order" });
+      }
+      if (updates.status && !ALLOWED_ORDER_STATUSES.includes(updates.status)) {
+        return res.status(400).json({ message: "Order status set is invalid" });
+      }
+      if (
+        updates.paymentStatus &&
+        !ALLOWED_PAYMENT_STATUSES.includes(updates.paymentStatus)
+      ) {
+        return res
+          .status(400)
+          .json({ message: "Payment status set is invalid" });
+      }
 
-    const updatedOrder = await order.save();
-    res.json(updatedOrder);
-  } catch (error) {
-    res.status(500).json({ message: "Server error", err: error.message });
+      const order = await Order.findById(id);
+
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      Object.keys(updates).forEach((key) => {
+        if (key != "comments") {
+          order[key] = updates[key];
+        } else {
+          updates[key].forEach((com) => {
+            order.comments.push(com);
+          });
+        }
+      });
+
+      const updatedOrder = await order.save();
+      res.json(updatedOrder);
+    } catch (error) {
+      res.status(500).json({ message: "Server error", err: error.message });
+    }
   }
-});
+);
 
 export default router;

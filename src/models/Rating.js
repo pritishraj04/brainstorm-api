@@ -1,3 +1,4 @@
+import Joi from "joi";
 import { Schema, model } from "mongoose";
 
 const RatingSchema = new Schema(
@@ -9,6 +10,14 @@ const RatingSchema = new Schema(
   },
   { timestamps: true }
 );
+
+// validation
+export const createRatingValidation = Joi.object({
+  customer: Joi.string().required(),
+  product: Joi.string().required(),
+  rating: Joi.number().min(0).max(5).required(),
+  comment: Joi.string(),
+});
 
 const Rating = model("Rating", RatingSchema);
 

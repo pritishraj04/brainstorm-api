@@ -1,3 +1,4 @@
+import Joi from "joi";
 import { model, Schema } from "mongoose";
 
 const orderSchema = new Schema(
@@ -95,6 +96,59 @@ const orderSchema = new Schema(
   },
   { timestamps: true }
 );
+
+// validation
+export const createOrderValidation = Joi.object({
+  customer: Joi.string().required(),
+  items: Joi.array().items(
+    Joi.object({
+      product: Joi.string().required(),
+      quantity: Joi.number().required().min(1),
+      price: Joi.number().required(),
+    })
+  ),
+  couponCode: Joi.string(),
+  discount: Joi.number().min(0),
+  totalAmount: Joi.number().required(),
+  transactionId: Joi.string(),
+  note: Joi.string(),
+  status: Joi.string().valid(
+    "Pending",
+    "Confirmed",
+    "Shipped",
+    "Delivered",
+    "Cancelled"
+  ),
+  paymentStatus: Joi.string().valid("Pending", "Paid", "Failed"),
+  shippingMethod: Joi.string().valid("Standard", "Express", "Priority"),
+  shippingCost: Joi.number().required(),
+  paymentMethod: Joi.string().valid("Cash On Delivery", "Card", "UPI"),
+});
+
+export const updateOrderValidation = Joi.object({
+  status: Joi.string().valid(
+    "Pending",
+    "Confirmed",
+    "Shipped",
+    "Delivered",
+    "Cancelled"
+  ),
+  paymentStatus: Joi.string().valid("Pending", "Paid", "Failed"),
+  deliveryDate: Joi.date(),
+  comments: Joi.array().items(
+    Joi.object({
+      comment: Joi.string().required(),
+      author: Joi.string().required(),
+    })
+  ),
+  address: Joi.object({
+    street: Joi.string().required(),
+    city: Joi.string().required(),
+    state: Joi.string().required(),
+    postalCode: Joi.string().required(),
+    country: Joi.string().required(),
+  }),
+});
 
 const Order = model("Order", orderSchema);
 
